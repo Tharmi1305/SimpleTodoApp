@@ -1,3 +1,3 @@
-# SimpleTodoApp
-
-A simple React Native todo app built with Expo
+# SimpleTodoApp 
+ 
+A React Native todo app built with Expo 
