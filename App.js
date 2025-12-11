@@ -7,8 +7,7 @@ import {
   StatusBar,
   TextInput,
   TouchableOpacity,
-  Keyboard,
-  Alert
+  Keyboard
 } from 'react-native';
 
 const App = () => {
@@ -17,7 +16,8 @@ const App = () => {
 
   const handleAddTask = () => {
     if (task.trim() === '') {
-      Alert.alert('Oops!', 'Please enter a task before adding.');
+      // Use window.alert for web compatibility
+      window.alert('Oops!\nPlease enter a task before adding.');
       return;
     }
 
@@ -33,37 +33,19 @@ const App = () => {
   };
 
   const handleDeleteTask = (id) => {
-    Alert.alert(
-      'Delete Task',
-      'Are you sure you want to delete this task?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            setTasks(tasks.filter(task => task.id !== id));
-          }
-        }
-      ]
-    );
+    // Use window.confirm for web compatibility
+    if (window.confirm('Are you sure you want to delete this task?')) {
+      setTasks(tasks.filter(task => task.id !== id));
+    }
   };
 
   const handleDeleteAll = () => {
     if (tasks.length === 0) return;
 
-    Alert.alert(
-      'Delete All Tasks',
-      `Are you sure you want to delete all ${tasks.length} tasks?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete All',
-          style: 'destructive',
-          onPress: () => setTasks([])
-        }
-      ]
-    );
+    // Use window.confirm for web compatibility
+    if (window.confirm(`Are you sure you want to delete all ${tasks.length} tasks?`)) {
+      setTasks([]);
+    }
   };
 
   return (
