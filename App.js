@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -7,16 +7,56 @@ import {
   StatusBar,
   TextInput,
   TouchableOpacity,
-  Keyboard
+  Keyboard,
+  Alert
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const STORAGE_KEY = '@simple_todo_app_tasks';
 
 const App = () => {
   const [task, setTask] = useState('');
   const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Load tasks from storage on app start
+  useEffect(() => {
+    loadTasksFromStorage();
+  }, []);
+
+  // Save tasks to storage whenever tasks change
+  useEffect(() => {
+    if (!loading) {
+      saveTasksToStorage();
+    }
+  }, [tasks, loading]);
+
+  const loadTasksFromStorage = async () => {
+    try {
+      const storedTasks = await AsyncStorage.getItem(STORAGE_KEY);
+      if (storedTasks !== null) {
+        setTasks(JSON.parse(storedTasks));
+      }
+    } catch (error) {
+      console.error('Failed to load tasks:', error);
+      Alert.alert('Error', 'Failed to load saved tasks.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveTasksToStorage = async () => {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+    } catch (error) {
+      console.error('Failed to save tasks:', error);
+      Alert.alert('Error', 'Failed to save tasks.');
+    }
+  };
 
   const handleAddTask = () => {
     if (task.trim() === '') {
-      window.alert('Oops!\nPlease enter a task before adding.');
+      Alert.alert('Oops!', 'Please enter a task before adding.');
       return;
     }
 
@@ -25,6 +65,7 @@ const App = () => {
       text: task.trim(),
       completed: false,
       createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      createdDate: new Date().toLocaleDateString(),
     };
 
     setTasks([newTask, ...tasks]); // New tasks at top
@@ -33,17 +74,50 @@ const App = () => {
   };
 
   const handleDeleteTask = (id) => {
-    if (window.confirm('Are you sure you want to delete this task?')) {
-      setTasks(tasks.filter(task => task.id !== id));
-    }
+    Alert.alert(
+      'Delete Task',
+      'Are you sure you want to delete this task?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            setTasks(tasks.filter(task => task.id !== id));
+          }
+        }
+      ]
+    );
   };
 
   const handleDeleteAll = () => {
     if (tasks.length === 0) return;
 
-    if (window.confirm(`Are you sure you want to delete all ${tasks.length} tasks?`)) {
-      setTasks([]);
-    }
+    Alert.alert(
+      'Delete All Tasks',
+      `Are you sure you want to delete all ${tasks.length} tasks?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete All',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'Clear All Data',
+              'This will permanently delete all tasks. Continue?',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Yes, Clear All',
+                  style: 'destructive',
+                  onPress: () => setTasks([])
+                }
+              ]
+            );
+          }
+        }
+      ]
+    );
   };
 
   const toggleTaskCompletion = (id) => {
@@ -59,9 +133,52 @@ const App = () => {
     setTasks(tasks.map(task => ({ ...task, completed: !allCompleted })));
   };
 
+  const handleClearCompleted = () => {
+    const completedTasks = tasks.filter(task => task.completed);
+    if (completedTasks.length === 0) return;
+
+    Alert.alert(
+      'Clear Completed Tasks',
+      `Delete ${completedTasks.length} completed task${completedTasks.length !== 1 ? 's' : ''}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear',
+          style: 'destructive',
+          onPress: () => {
+            setTasks(tasks.filter(task => !task.completed));
+          }
+        }
+      ]
+    );
+  };
+
   // Calculate statistics
   const completedCount = tasks.filter(task => task.completed).length;
   const pendingCount = tasks.length - completedCount;
+
+  // Group tasks by date
+  const groupTasksByDate = () => {
+    const groups = {};
+    tasks.forEach(task => {
+      const date = task.createdDate || 'Today';
+      if (!groups[date]) {
+        groups[date] = [];
+      }
+      groups[date].push(task);
+    });
+    return groups;
+  };
+
+  const taskGroups = groupTasksByDate();
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Loading your tasks...</Text>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -70,7 +187,7 @@ const App = () => {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Simple Todo App</Text>
-        <Text style={styles.subtitle}>Stay organized and productive</Text>
+        <Text style={styles.subtitle}>Your tasks are saved automatically</Text>
       </View>
 
       {/* Input Section */}
@@ -108,29 +225,34 @@ const App = () => {
         </View>
       </View>
 
-      {/* Tasks Header with Actions */}
-      <View style={styles.tasksHeader}>
-        <Text style={styles.sectionTitle}>Your Tasks</Text>
-        <View style={styles.actionButtons}>
-          {tasks.length > 0 && (
-            <>
+      {/* Action Buttons */}
+      <View style={styles.actionButtonsContainer}>
+        {tasks.length > 0 && (
+          <>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.completeAllButton]}
+              onPress={handleCompleteAll}
+            >
+              <Text style={styles.actionButtonText}>
+                {completedCount === tasks.length ? 'Uncheck All' : 'Complete All'}
+              </Text>
+            </TouchableOpacity>
+            {completedCount > 0 && (
               <TouchableOpacity
-                style={[styles.actionButton, styles.completeAllButton]}
-                onPress={handleCompleteAll}
+                style={[styles.actionButton, styles.clearCompletedButton]}
+                onPress={handleClearCompleted}
               >
-                <Text style={styles.actionButtonText}>
-                  {completedCount === tasks.length ? 'Uncheck All' : 'Complete All'}
-                </Text>
+                <Text style={styles.actionButtonText}>Clear Completed</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.actionButton, styles.deleteAllButton]}
-                onPress={handleDeleteAll}
-              >
-                <Text style={styles.actionButtonText}>Delete All</Text>
-              </TouchableOpacity>
-            </>
-          )}
-        </View>
+            )}
+            <TouchableOpacity
+              style={[styles.actionButton, styles.deleteAllButton]}
+              onPress={handleDeleteAll}
+            >
+              <Text style={styles.actionButtonText}>Delete All</Text>
+            </TouchableOpacity>
+          </>
+        )}
       </View>
 
       {/* Tasks List */}
@@ -140,62 +262,65 @@ const App = () => {
             <Text style={styles.emptyEmoji}>📝</Text>
             <Text style={styles.emptyText}>No tasks yet</Text>
             <Text style={styles.emptySubtext}>
-              Add your first task using the input above!
+              Add your first task above. It will be saved automatically!
             </Text>
           </View>
         ) : (
-          tasks.map((item) => (
-            <View
-              key={item.id}
-              style={[
-                styles.taskItem,
-                item.completed && styles.completedTaskItem
-              ]}
-            >
-              {/* Checkbox */}
-              <TouchableOpacity
-                style={[
-                  styles.checkbox,
-                  item.completed && styles.checkedBox
-                ]}
-                onPress={() => toggleTaskCompletion(item.id)}
-              >
-                {item.completed && <Text style={styles.checkmark}>✓</Text>}
-              </TouchableOpacity>
+          Object.entries(taskGroups).map(([date, dateTasks]) => (
+            <View key={date} style={styles.dateGroup}>
+              <Text style={styles.dateHeader}>{date}</Text>
+              {dateTasks.map((item) => (
+                <View
+                  key={item.id}
+                  style={[
+                    styles.taskItem,
+                    item.completed && styles.completedTaskItem
+                  ]}
+                >
+                  {/* Checkbox */}
+                  <TouchableOpacity
+                    style={[
+                      styles.checkbox,
+                      item.completed && styles.checkedBox
+                    ]}
+                    onPress={() => toggleTaskCompletion(item.id)}
+                  >
+                    {item.completed && <Text style={styles.checkmark}>✓</Text>}
+                  </TouchableOpacity>
 
-              {/* Task Content */}
-              <View style={styles.taskContent}>
-                <Text style={[
-                  styles.taskText,
-                  item.completed && styles.completedTaskText
-                ]}>
-                  {item.text}
-                </Text>
-                <Text style={styles.taskTime}>
-                  Added at {item.createdAt}
-                </Text>
-              </View>
+                  {/* Task Content */}
+                  <View style={styles.taskContent}>
+                    <Text style={[
+                      styles.taskText,
+                      item.completed && styles.completedTaskText
+                    ]}>
+                      {item.text}
+                    </Text>
+                    <Text style={styles.taskTime}>
+                      Added at {item.createdAt}
+                    </Text>
+                  </View>
 
-              {/* Delete Button */}
-              <TouchableOpacity
-                style={styles.deleteButton}
-                onPress={() => handleDeleteTask(item.id)}
-              >
-                <Text style={styles.deleteButtonText}>🗑️</Text>
-              </TouchableOpacity>
+                  {/* Delete Button */}
+                  <TouchableOpacity
+                    style={styles.deleteButton}
+                    onPress={() => handleDeleteTask(item.id)}
+                  >
+                    <Text style={styles.deleteButtonText}>🗑️</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
             </View>
           ))
         )}
       </View>
 
-      {/* Footer */}
+      {/* Storage Info Footer */}
       <View style={styles.footer}>
         <Text style={styles.footerText}>
           {tasks.length === 0
-            ? 'Start adding tasks to get organized!'
-            : completedCount === tasks.length
-              ? '🎉 All tasks completed! Great job!'
-              : `Keep going! ${pendingCount} task${pendingCount !== 1 ? 's' : ''} remaining.`
+            ? 'Tasks are automatically saved locally on your device.'
+            : `Auto-saved • ${tasks.length} task${tasks.length !== 1 ? 's' : ''} stored locally`
           }
         </Text>
       </View>
@@ -207,6 +332,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+  },
+  loadingText: {
+    fontSize: 18,
+    color: '#666',
   },
   header: {
     backgroundColor: '#5e8b7e',
@@ -299,42 +434,49 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 4,
   },
-  tasksHeader: {
+  actionButtonsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
     paddingHorizontal: 16,
-    marginTop: 20,
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  actionButtons: {
-    flexDirection: 'row',
+    marginTop: 16,
     gap: 8,
   },
   actionButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    minWidth: 120,
   },
   completeAllButton: {
     backgroundColor: '#4caf50',
+  },
+  clearCompletedButton: {
+    backgroundColor: '#ff9800',
   },
   deleteAllButton: {
     backgroundColor: '#ff6b6b',
   },
   actionButtonText: {
     color: 'white',
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: 'bold',
+    textAlign: 'center',
   },
   tasksContainer: {
     flex: 1,
     paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+  dateGroup: {
+    marginBottom: 20,
+  },
+  dateHeader: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#555',
+    marginBottom: 8,
+    paddingLeft: 8,
   },
   emptyState: {
     alignItems: 'center',
@@ -420,14 +562,14 @@ const styles = StyleSheet.create({
   },
   footer: {
     backgroundColor: '#fff',
-    paddingVertical: 16,
+    paddingVertical: 12,
     borderTopWidth: 1,
     borderTopColor: '#eee',
     alignItems: 'center',
   },
   footerText: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 12,
+    color: '#888',
     textAlign: 'center',
     paddingHorizontal: 20,
   },
