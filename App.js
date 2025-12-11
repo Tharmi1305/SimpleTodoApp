@@ -7,8 +7,7 @@ import {
   StatusBar,
   TextInput,
   TouchableOpacity,
-  Keyboard,
-  Alert
+  Keyboard
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -39,7 +38,7 @@ const App = () => {
       }
     } catch (error) {
       console.error('Failed to load tasks:', error);
-      Alert.alert('Error', 'Failed to load saved tasks.');
+      window.alert('Error\nFailed to load saved tasks.');
     } finally {
       setLoading(false);
     }
@@ -50,13 +49,13 @@ const App = () => {
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
     } catch (error) {
       console.error('Failed to save tasks:', error);
-      Alert.alert('Error', 'Failed to save tasks.');
+      window.alert('Error\nFailed to save tasks.');
     }
   };
 
   const handleAddTask = () => {
     if (task.trim() === '') {
-      Alert.alert('Oops!', 'Please enter a task before adding.');
+      window.alert('Oops!\nPlease enter a task before adding.');
       return;
     }
 
@@ -74,50 +73,19 @@ const App = () => {
   };
 
   const handleDeleteTask = (id) => {
-    Alert.alert(
-      'Delete Task',
-      'Are you sure you want to delete this task?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            setTasks(tasks.filter(task => task.id !== id));
-          }
-        }
-      ]
-    );
+    if (window.confirm('Are you sure you want to delete this task?')) {
+      setTasks(tasks.filter(task => task.id !== id));
+    }
   };
 
   const handleDeleteAll = () => {
     if (tasks.length === 0) return;
 
-    Alert.alert(
-      'Delete All Tasks',
-      `Are you sure you want to delete all ${tasks.length} tasks?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete All',
-          style: 'destructive',
-          onPress: () => {
-            Alert.alert(
-              'Clear All Data',
-              'This will permanently delete all tasks. Continue?',
-              [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                  text: 'Yes, Clear All',
-                  style: 'destructive',
-                  onPress: () => setTasks([])
-                }
-              ]
-            );
-          }
-        }
-      ]
-    );
+    if (window.confirm(`Are you sure you want to delete all ${tasks.length} tasks?`)) {
+      if (window.confirm('⚠️ WARNING: This will permanently delete ALL tasks.\nThis action cannot be undone!\n\nAre you absolutely sure?')) {
+        setTasks([]);
+      }
+    }
   };
 
   const toggleTaskCompletion = (id) => {
@@ -137,20 +105,9 @@ const App = () => {
     const completedTasks = tasks.filter(task => task.completed);
     if (completedTasks.length === 0) return;
 
-    Alert.alert(
-      'Clear Completed Tasks',
-      `Delete ${completedTasks.length} completed task${completedTasks.length !== 1 ? 's' : ''}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Clear',
-          style: 'destructive',
-          onPress: () => {
-            setTasks(tasks.filter(task => !task.completed));
-          }
-        }
-      ]
-    );
+    if (window.confirm(`Delete ${completedTasks.length} completed task${completedTasks.length !== 1 ? 's' : ''}?`)) {
+      setTasks(tasks.filter(task => !task.completed));
+    }
   };
 
   // Calculate statistics
