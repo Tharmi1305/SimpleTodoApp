@@ -16,7 +16,6 @@ const App = () => {
 
   const handleAddTask = () => {
     if (task.trim() === '') {
-      // Use window.alert for web compatibility
       window.alert('Oops!\nPlease enter a task before adding.');
       return;
     }
@@ -25,15 +24,15 @@ const App = () => {
       id: Date.now().toString(),
       text: task.trim(),
       completed: false,
+      createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
 
-    setTasks([...tasks, newTask]);
+    setTasks([newTask, ...tasks]); // New tasks at top
     setTask('');
     Keyboard.dismiss();
   };
 
   const handleDeleteTask = (id) => {
-    // Use window.confirm for web compatibility
     if (window.confirm('Are you sure you want to delete this task?')) {
       setTasks(tasks.filter(task => task.id !== id));
     }
@@ -42,11 +41,27 @@ const App = () => {
   const handleDeleteAll = () => {
     if (tasks.length === 0) return;
 
-    // Use window.confirm for web compatibility
     if (window.confirm(`Are you sure you want to delete all ${tasks.length} tasks?`)) {
       setTasks([]);
     }
   };
+
+  const toggleTaskCompletion = (id) => {
+    setTasks(tasks.map(task =>
+      task.id === id ? { ...task, completed: !task.completed } : task
+    ));
+  };
+
+  const handleCompleteAll = () => {
+    if (tasks.length === 0) return;
+
+    const allCompleted = tasks.every(task => task.completed);
+    setTasks(tasks.map(task => ({ ...task, completed: !allCompleted })));
+  };
+
+  // Calculate statistics
+  const completedCount = tasks.filter(task => task.completed).length;
+  const pendingCount = tasks.length - completedCount;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -77,19 +92,45 @@ const App = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Tasks Header with Delete All */}
+      {/* Stats Bar */}
+      <View style={styles.statsContainer}>
+        <View style={styles.statItem}>
+          <Text style={styles.statNumber}>{tasks.length}</Text>
+          <Text style={styles.statLabel}>Total</Text>
+        </View>
+        <View style={styles.statItem}>
+          <Text style={[styles.statNumber, styles.pendingStat]}>{pendingCount}</Text>
+          <Text style={styles.statLabel}>Pending</Text>
+        </View>
+        <View style={styles.statItem}>
+          <Text style={[styles.statNumber, styles.completedStat]}>{completedCount}</Text>
+          <Text style={styles.statLabel}>Completed</Text>
+        </View>
+      </View>
+
+      {/* Tasks Header with Actions */}
       <View style={styles.tasksHeader}>
-        <Text style={styles.taskCountText}>
-          📋 Tasks: {tasks.length}
-        </Text>
-        {tasks.length > 0 && (
-          <TouchableOpacity
-            style={styles.deleteAllButton}
-            onPress={handleDeleteAll}
-          >
-            <Text style={styles.deleteAllText}>Delete All</Text>
-          </TouchableOpacity>
-        )}
+        <Text style={styles.sectionTitle}>Your Tasks</Text>
+        <View style={styles.actionButtons}>
+          {tasks.length > 0 && (
+            <>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.completeAllButton]}
+                onPress={handleCompleteAll}
+              >
+                <Text style={styles.actionButtonText}>
+                  {completedCount === tasks.length ? 'Uncheck All' : 'Complete All'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.deleteAllButton]}
+                onPress={handleDeleteAll}
+              >
+                <Text style={styles.actionButtonText}>Delete All</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
       </View>
 
       {/* Tasks List */}
@@ -104,7 +145,25 @@ const App = () => {
           </View>
         ) : (
           tasks.map((item) => (
-            <View key={item.id} style={styles.taskItem}>
+            <View
+              key={item.id}
+              style={[
+                styles.taskItem,
+                item.completed && styles.completedTaskItem
+              ]}
+            >
+              {/* Checkbox */}
+              <TouchableOpacity
+                style={[
+                  styles.checkbox,
+                  item.completed && styles.checkedBox
+                ]}
+                onPress={() => toggleTaskCompletion(item.id)}
+              >
+                {item.completed && <Text style={styles.checkmark}>✓</Text>}
+              </TouchableOpacity>
+
+              {/* Task Content */}
               <View style={styles.taskContent}>
                 <Text style={[
                   styles.taskText,
@@ -112,7 +171,12 @@ const App = () => {
                 ]}>
                   {item.text}
                 </Text>
+                <Text style={styles.taskTime}>
+                  Added at {item.createdAt}
+                </Text>
               </View>
+
+              {/* Delete Button */}
               <TouchableOpacity
                 style={styles.deleteButton}
                 onPress={() => handleDeleteTask(item.id)}
@@ -129,7 +193,9 @@ const App = () => {
         <Text style={styles.footerText}>
           {tasks.length === 0
             ? 'Start adding tasks to get organized!'
-            : `You have ${tasks.length} task${tasks.length !== 1 ? 's' : ''} in your list`
+            : completedCount === tasks.length
+              ? '🎉 All tasks completed! Great job!'
+              : `Keep going! ${pendingCount} task${pendingCount !== 1 ? 's' : ''} remaining.`
           }
         </Text>
       </View>
@@ -200,33 +266,75 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
   },
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginHorizontal: 16,
+    marginTop: 20,
+    backgroundColor: 'white',
+    paddingVertical: 16,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#5e8b7e',
+  },
+  pendingStat: {
+    color: '#ff9800',
+  },
+  completedStat: {
+    color: '#4caf50',
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+  },
   tasksHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: 20,
+    marginBottom: 12,
   },
-  taskCountText: {
-    fontSize: 16,
-    color: '#444',
-    fontWeight: '600',
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
   },
-  deleteAllButton: {
-    backgroundColor: '#ff6b6b',
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  actionButton: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
   },
-  deleteAllText: {
+  completeAllButton: {
+    backgroundColor: '#4caf50',
+  },
+  deleteAllButton: {
+    backgroundColor: '#ff6b6b',
+  },
+  actionButtonText: {
     color: 'white',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: 'bold',
   },
   tasksContainer: {
     flex: 1,
-    padding: 16,
+    paddingHorizontal: 16,
   },
   emptyState: {
     alignItems: 'center',
@@ -264,16 +372,44 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
+  completedTaskItem: {
+    borderLeftColor: '#4caf50',
+    backgroundColor: '#f9f9f9',
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#ddd',
+    marginRight: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkedBox: {
+    backgroundColor: '#4caf50',
+    borderColor: '#4caf50',
+  },
+  checkmark: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
   taskContent: {
     flex: 1,
   },
   taskText: {
     fontSize: 16,
     color: '#333',
+    marginBottom: 4,
   },
   completedTaskText: {
     textDecorationLine: 'line-through',
     color: '#888',
+  },
+  taskTime: {
+    fontSize: 12,
+    color: '#999',
   },
   deleteButton: {
     padding: 8,
@@ -293,6 +429,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     textAlign: 'center',
+    paddingHorizontal: 20,
   },
 });
 
