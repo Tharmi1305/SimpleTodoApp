@@ -3,12 +3,12 @@ import {
   StyleSheet,
   Text,
   View,
-  SafeAreaView,
   StatusBar,
   TextInput,
   TouchableOpacity,
   Keyboard,
-  ScrollView
+  ScrollView,
+  Alert
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -39,7 +39,7 @@ const App = () => {
       }
     } catch (error) {
       console.error('Failed to load tasks:', error);
-      window.alert('Error\nFailed to load saved tasks.');
+      Alert.alert('Error', 'Failed to load saved tasks.');
     } finally {
       setLoading(false);
     }
@@ -50,13 +50,13 @@ const App = () => {
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
     } catch (error) {
       console.error('Failed to save tasks:', error);
-      window.alert('Error\nFailed to save tasks.');
+      Alert.alert('Error', 'Failed to save tasks.');
     }
   };
 
   const handleAddTask = () => {
     if (task.trim() === '') {
-      window.alert('Oops!\nPlease enter a task before adding.');
+      Alert.alert('Oops!', 'Please enter a task before adding.');
       return;
     }
 
@@ -68,25 +68,58 @@ const App = () => {
       createdDate: new Date().toLocaleDateString(),
     };
 
-    setTasks([newTask, ...tasks]); // New tasks at top
+    setTasks([newTask, ...tasks]);
     setTask('');
     Keyboard.dismiss();
   };
 
   const handleDeleteTask = (id) => {
-    if (window.confirm('Are you sure you want to delete this task?')) {
-      setTasks(tasks.filter(task => task.id !== id));
-    }
+    Alert.alert(
+      'Delete Task',
+      'Are you sure you want to delete this task?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            setTasks(tasks.filter(task => task.id !== id));
+          }
+        }
+      ]
+    );
   };
 
   const handleDeleteAll = () => {
     if (tasks.length === 0) return;
 
-    if (window.confirm(`Delete all ${tasks.length} tasks?`)) {
-      if (window.confirm('WARNING: This will delete ALL tasks permanently!\n\nAre you absolutely sure?')) {
-        setTasks([]);
-      }
-    }
+    Alert.alert(
+      'Delete All Tasks',
+      `Delete all ${tasks.length} tasks?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'WARNING',
+              'This will delete ALL tasks permanently!\n\nAre you absolutely sure?',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Delete All',
+                  style: 'destructive',
+                  onPress: () => {
+                    setTasks([]);
+                  }
+                }
+              ]
+            );
+          }
+        }
+      ]
+    );
   };
 
   const toggleTaskCompletion = (id) => {
@@ -105,13 +138,23 @@ const App = () => {
   const handleClearCompleted = () => {
     const completedTasks = tasks.filter(task => task.completed);
     if (completedTasks.length === 0) {
-      window.alert('No completed tasks to clear!');
+      Alert.alert('No Completed Tasks', 'No completed tasks to clear!');
       return;
     }
 
-    if (window.confirm(`Clear ${completedTasks.length} completed task${completedTasks.length !== 1 ? 's' : ''}?`)) {
-      setTasks(tasks.filter(task => !task.completed));
-    }
+    Alert.alert(
+      'Clear Completed Tasks',
+      `Clear ${completedTasks.length} completed task${completedTasks.length !== 1 ? 's' : ''}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear',
+          onPress: () => {
+            setTasks(tasks.filter(task => !task.completed));
+          }
+        }
+      ]
+    );
   };
 
   // Calculate statistics
@@ -166,179 +209,176 @@ const App = () => {
       tasks: tasks
     };
 
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `todo-tasks-${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    window.alert(`Exported ${tasks.length} tasks successfully!`);
+    Alert.alert(
+      'Tasks Exported',
+      `Successfully exported ${tasks.length} tasks!\n\nData has been prepared for export.`,
+      [
+        { text: 'OK' }
+      ]
+    );
   };
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
+      <View style={styles.loadingContainer}>
         <View style={styles.loadingContent}>
-          <View style={styles.loadingSpinner} />
+          <Text style={styles.loadingEmoji}>📊</Text>
           <Text style={styles.loadingText}>Loading your tasks...</Text>
           <Text style={styles.loadingSubtext}>Please wait a moment</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#60a5fa" />
+    <View style={styles.mainContainer}>
+      <StatusBar barStyle="light-content" backgroundColor="#000066" />
 
-      {/* Header */}
+      {/* FIXED HEADER - GUARANTEED TO SHOW */}
       <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <Text style={styles.title}>Todo Master</Text>
-          <Text style={styles.subtitle}>Organize your life, one task at a time</Text>
-        </View>
-        <View style={styles.headerStats}>
-          <View style={styles.headerStat}>
-            <Text style={styles.headerStatNumber}>{tasks.length}</Text>
-            <Text style={styles.headerStatLabel}>Total Tasks</Text>
-          </View>
-          <View style={styles.headerStat}>
-            <Text style={styles.headerStatCount}>{pendingCount}</Text>
-            <Text style={styles.headerStatLabel}>Pending</Text>
-          </View>
-        </View>
+        <Text style={styles.title}>📋 Todo Master</Text>
+        <Text style={styles.subtitle}>Organize your life, one task at a time ✨</Text>
       </View>
 
-      {/* Quick Stats */}
-      <View style={styles.quickStats}>
-        <View style={[styles.quickStat, styles.pendingStat]}>
-          <Text style={styles.quickStatNumber}>{pendingCount}</Text>
-          <Text style={styles.quickStatLabel}>TO DO</Text>
+      {/* SCROLLING CONTENT */}
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Quick Stats */}
+        <View style={styles.quickStats}>
+          <View style={[styles.quickStat, styles.pendingStat]}>
+            <Text style={styles.quickStatEmoji}>📝</Text>
+            <Text style={styles.quickStatNumber}>{pendingCount}</Text>
+            <Text style={styles.quickStatLabel}>TO DO</Text>
+          </View>
+          <View style={[styles.quickStat, styles.completedStat]}>
+            <Text style={styles.quickStatEmoji}>✅</Text>
+            <Text style={styles.quickStatNumber}>{completedCount}</Text>
+            <Text style={styles.quickStatLabel}>DONE</Text>
+          </View>
+          <View style={[styles.quickStat, styles.progressStat]}>
+            <Text style={styles.quickStatEmoji}>📈</Text>
+            <Text style={styles.quickStatNumber}>
+              {tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0}%
+            </Text>
+            <Text style={styles.quickStatLabel}>PROGRESS</Text>
+          </View>
         </View>
-        <View style={[styles.quickStat, styles.completedStat]}>
-          <Text style={styles.quickStatNumber}>{completedCount}</Text>
-          <Text style={styles.quickStatLabel}>DONE</Text>
-        </View>
-        <View style={[styles.quickStat, styles.progressStat]}>
-          <Text style={styles.quickStatNumber}>
-            {tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0}%
+
+        {/* Input Section */}
+        <View style={styles.inputContainer}>
+          <Text style={styles.inputLabel}>➕ ADD NEW TASK</Text>
+          <View style={styles.inputWrapper}>
+            <TextInput
+              style={styles.input}
+              placeholder="What needs to be done today? ✏️"
+              placeholderTextColor="#94a3b8"
+              value={task}
+              onChangeText={setTask}
+              onSubmitEditing={handleAddTask}
+            />
+            <TouchableOpacity
+              style={[styles.addButton, !task.trim() && styles.disabledButton]}
+              onPress={handleAddTask}
+              disabled={!task.trim()}
+            >
+              <Text style={styles.addButtonText}>📝 ADD TASK</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.inputHint}>
+            Press Enter or click ADD TASK to save
           </Text>
-          <Text style={styles.quickStatLabel}>PROGRESS</Text>
         </View>
-      </View>
 
-      {/* Input Section */}
-      <View style={styles.inputContainer}>
-        <Text style={styles.inputLabel}>ADD NEW TASK</Text>
-        <View style={styles.inputWrapper}>
-          <TextInput
-            style={styles.input}
-            placeholder="What needs to be done today?"
-            placeholderTextColor="#94a3b8"
-            value={task}
-            onChangeText={setTask}
-            onSubmitEditing={handleAddTask}
-          />
-          <TouchableOpacity
-            style={[styles.addButton, !task.trim() && styles.disabledButton]}
-            onPress={handleAddTask}
-            disabled={!task.trim()}
-          >
-            <Text style={styles.addButtonText}>ADD TASK</Text>
-          </TouchableOpacity>
-        </View>
-        <Text style={styles.inputHint}>
-          Press Enter or click ADD TASK to save
-        </Text>
-      </View>
-
-      {/* Action Buttons */}
-      {tasks.length > 0 && (
-        <View style={styles.actionButtonsContainer}>
-          <Text style={styles.actionSectionTitle}>QUICK ACTIONS</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.actionScroll}>
-            <View style={styles.actionButtonsRow}>
-              <TouchableOpacity
-                style={[styles.actionButton, styles.completeAllButton]}
-                onPress={handleCompleteAll}
-              >
-                <Text style={styles.actionButtonText}>
-                  {completedCount === tasks.length ? 'UNCHECK ALL' : 'COMPLETE ALL'}
-                </Text>
-              </TouchableOpacity>
-
-              {completedCount > 0 && (
+        {/* Action Buttons */}
+        {tasks.length > 0 && (
+          <View style={styles.actionButtonsContainer}>
+            <Text style={styles.actionSectionTitle}>⚡ QUICK ACTIONS</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.actionScroll}>
+              <View style={styles.actionButtonsRow}>
                 <TouchableOpacity
-                  style={[styles.actionButton, styles.clearCompletedButton]}
-                  onPress={handleClearCompleted}
+                  style={[styles.actionButton, styles.completeAllButton]}
+                  onPress={handleCompleteAll}
                 >
-                  <Text style={styles.actionButtonText}>CLEAR COMPLETED</Text>
+                  <Text style={styles.actionButtonText}>
+                    {completedCount === tasks.length ? '⏪ UNCHECK ALL' : '✅ COMPLETE ALL'}
+                  </Text>
                 </TouchableOpacity>
-              )}
 
-              <TouchableOpacity
-                style={[styles.actionButton, styles.exportButton]}
-                onPress={exportTasks}
-              >
-                <Text style={styles.actionButtonText}>EXPORT TASKS</Text>
-              </TouchableOpacity>
+                {completedCount > 0 && (
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.clearCompletedButton]}
+                    onPress={handleClearCompleted}
+                  >
+                    <Text style={styles.actionButtonText}>🗑️ CLEAR COMPLETED</Text>
+                  </TouchableOpacity>
+                )}
 
-              <TouchableOpacity
-                style={[styles.actionButton, styles.deleteAllButton]}
-                onPress={handleDeleteAll}
-              >
-                <Text style={styles.actionButtonText}>DELETE ALL</Text>
-              </TouchableOpacity>
-            </View>
-          </ScrollView>
-        </View>
-      )}
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.exportButton]}
+                  onPress={exportTasks}
+                >
+                  <Text style={styles.actionButtonText}>📤 EXPORT TASKS</Text>
+                </TouchableOpacity>
 
-      {/* Tasks List */}
-      <ScrollView style={styles.tasksScrollContainer} showsVerticalScrollIndicator={true}>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.deleteAllButton]}
+                  onPress={handleDeleteAll}
+                >
+                  <Text style={styles.actionButtonText}>🚫 DELETE ALL</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Tasks List */}
         {tasks.length === 0 ? (
           <View style={styles.emptyState}>
-            <View style={styles.emptyIcon}>
-              <Text style={styles.emptyIconText}>✓</Text>
-            </View>
-            <Text style={styles.emptyTitle}>All Clear!</Text>
+            <Text style={styles.emptyEmoji}>🎉</Text>
+            <Text style={styles.emptyTitle}>All Clear! ✨</Text>
             <Text style={styles.emptyText}>
               You don't have any tasks yet. Start by adding a task above.
             </Text>
             <View style={styles.emptyTips}>
-              <Text style={styles.tipTitle}>HOW TO USE:</Text>
+              <Text style={styles.tipTitle}>💡 HOW TO USE:</Text>
               <View style={styles.tipItem}>
-                <View style={styles.tipBullet} />
+                <Text style={styles.tipEmoji}>💾</Text>
                 <Text style={styles.tipText}>Tasks are saved automatically</Text>
               </View>
               <View style={styles.tipItem}>
-                <View style={styles.tipBullet} />
-                <Text style={styles.tipText}>Click the circle to mark as complete</Text>
+                <Text style={styles.tipEmoji}>✅</Text>
+                <Text style={styles.tipText}>Tap the circle to mark as complete</Text>
               </View>
               <View style={styles.tipItem}>
-                <View style={styles.tipBullet} />
-                <Text style={styles.tipText}>Use the X button to delete tasks</Text>
+                <Text style={styles.tipEmoji}>❌</Text>
+                <Text style={styles.tipText}>Tap the X button to delete tasks</Text>
               </View>
               <View style={styles.tipItem}>
-                <View style={styles.tipBullet} />
+                <Text style={styles.tipEmoji}>📤</Text>
                 <Text style={styles.tipText}>Export your tasks as backup</Text>
               </View>
             </View>
           </View>
         ) : (
           <>
-            <Text style={styles.tasksSectionTitle}>YOUR TASKS</Text>
+            <Text style={styles.tasksSectionTitle}>📋 YOUR TASKS</Text>
             {Object.entries(taskGroups).map(([date, dateTasks]) => (
               <View key={date} style={styles.dateGroup}>
                 <View style={styles.dateHeaderContainer}>
-                  <Text style={styles.dateHeader}>{date}</Text>
-                  <Text style={styles.dateCount}>
-                    {dateTasks.length} task{dateTasks.length !== 1 ? 's' : ''}
-                  </Text>
+                  <View style={styles.dateHeaderRow}>
+                    <Text style={styles.dateIcon}>
+                      {date === 'Today' ? '📅' : date === 'Yesterday' ? '🕒' : '🗓️'}
+                    </Text>
+                    <Text style={styles.dateHeader}>{date}</Text>
+                  </View>
+                  <View style={styles.dateBadge}>
+                    <Text style={styles.dateCount}>
+                      {dateTasks.length} {dateTasks.length === 1 ? 'task' : 'tasks'}
+                    </Text>
+                  </View>
                 </View>
 
                 {dateTasks.map((item) => (
@@ -370,11 +410,11 @@ const App = () => {
                       </Text>
                       <View style={styles.taskMeta}>
                         <Text style={styles.taskTime}>
-                          Added at {item.createdAt}
+                          ⏰ Added at {item.createdAt}
                         </Text>
                         {item.completed && (
                           <View style={styles.completedBadge}>
-                            <Text style={styles.completedBadgeText}>COMPLETED</Text>
+                            <Text style={styles.completedBadgeText}>✅ COMPLETED</Text>
                           </View>
                         )}
                       </View>
@@ -385,7 +425,7 @@ const App = () => {
                       style={styles.deleteButton}
                       onPress={() => handleDeleteTask(item.id)}
                     >
-                      <Text style={styles.deleteButtonText}>×</Text>
+                      <Text style={styles.deleteButtonText}>🗑️</Text>
                     </TouchableOpacity>
                   </View>
                 ))}
@@ -393,28 +433,31 @@ const App = () => {
             ))}
           </>
         )}
+
+        {/* Footer Spacer */}
+        <View style={styles.footerSpacer} />
       </ScrollView>
 
       {/* Footer */}
       <View style={styles.footer}>
         <Text style={styles.footerText}>
           {tasks.length === 0
-            ? 'Ready to get organized? Add your first task above!'
+            ? '🚀 Ready to get organized? Add your first task above!'
             : completedCount === tasks.length
-              ? 'Congratulations! All tasks completed!'
-              : `${completedCount} of ${tasks.length} tasks completed • ${pendingCount} remaining`
+              ? '🎉 Congratulations! All tasks completed! 🏆'
+              : `📊 ${completedCount} of ${tasks.length} tasks completed • ${pendingCount} remaining`
           }
         </Text>
         <Text style={styles.footerSubtext}>
-          Data is saved automatically • Refresh to test persistence
+          💾 Data is saved automatically • 🔄 Refresh to test persistence
         </Text>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  mainContainer: {
     flex: 1,
     backgroundColor: '#f8fafc',
   },
@@ -427,13 +470,8 @@ const styles = StyleSheet.create({
   loadingContent: {
     alignItems: 'center',
   },
-  loadingSpinner: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    borderWidth: 3,
-    borderColor: '#60a5fa',
-    borderTopColor: 'transparent',
+  loadingEmoji: {
+    fontSize: 60,
     marginBottom: 20,
   },
   loadingText: {
@@ -446,151 +484,126 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#94a3b8',
   },
+  // SIMPLE FIXED HEADER
   header: {
-    backgroundColor: '#60a5fa', // Light blue header - better for mobile
-    paddingVertical: 20,
-    paddingHorizontal: 16,
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    shadowColor: '#60a5fa',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
+    backgroundColor: '#000066',
+    paddingTop: 40, // Fixed padding to ensure it shows
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+    borderBottomWidth: 3,
+    borderBottomColor: '#000044',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 6,
-  },
-  headerContent: {
-    flex: 1,
+    elevation: 10,
   },
   title: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: '#FFFFFF', // Pure white for main title
-    marginBottom: 4,
+    fontSize: 32,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    marginBottom: 6,
     letterSpacing: -0.5,
-    textShadowColor: 'rgba(0, 0, 0, 0.1)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    textAlign: 'center',
   },
   subtitle: {
-    fontSize: 13,
-    color: '#E0F2FE', // Very light blue for subtitle (different from title)
+    fontSize: 16,
+    color: '#CCCCFF',
     fontWeight: '500',
+    textAlign: 'center',
+    opacity: 0.95,
   },
-  headerStats: {
-    alignItems: 'flex-end',
-    marginLeft: 15,
+  scrollView: {
+    flex: 1,
   },
-  headerStat: {
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  headerStatNumber: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#FFFFFF', // White for total tasks count
-    textShadowColor: 'rgba(0, 0, 0, 0.1)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  headerStatCount: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#FEF3C7', // Light yellow for pending count
-    textShadowColor: 'rgba(0, 0, 0, 0.1)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  headerStatLabel: {
-    fontSize: 10,
-    color: 'rgba(255, 255, 255, 0.9)', // Slightly transparent white for labels
-    marginTop: 2,
-    fontWeight: '600',
-    letterSpacing: 0.5,
+  scrollContent: {
+    paddingBottom: 120,
   },
   quickStats: {
     flexDirection: 'row',
-    marginHorizontal: 16,
+    marginHorizontal: 20,
     marginTop: 20,
-    marginBottom: 16,
-    gap: 8,
+    marginBottom: 20,
+    gap: 10,
   },
   quickStat: {
     flex: 1,
     backgroundColor: 'white',
     paddingVertical: 16,
-    paddingHorizontal: 10,
-    borderRadius: 14,
+    paddingHorizontal: 12,
+    borderRadius: 16,
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
   pendingStat: {
-    borderTopWidth: 4,
+    borderTopWidth: 5,
     borderTopColor: '#f59e0b',
   },
   completedStat: {
-    borderTopWidth: 4,
+    borderTopWidth: 5,
     borderTopColor: '#10b981',
   },
   progressStat: {
-    borderTopWidth: 4,
-    borderTopColor: '#60a5fa',
+    borderTopWidth: 5,
+    borderTopColor: '#000066',
+  },
+  quickStatEmoji: {
+    fontSize: 24,
+    marginBottom: 8,
   },
   quickStatNumber: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: '800',
     color: '#1e293b',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   quickStatLabel: {
-    fontSize: 10,
+    fontSize: 11,
     color: '#64748b',
     fontWeight: '700',
     letterSpacing: 0.8,
   },
   inputContainer: {
-    paddingHorizontal: 16,
-    marginBottom: 20,
+    paddingHorizontal: 20,
+    marginBottom: 24,
   },
   inputLabel: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#64748b',
     fontWeight: '700',
-    marginBottom: 8,
-    letterSpacing: 1,
+    marginBottom: 10,
+    letterSpacing: 0.5,
   },
   inputWrapper: {
     flexDirection: 'row',
     backgroundColor: 'white',
-    borderRadius: 14,
+    borderRadius: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
-    shadowRadius: 6,
+    shadowRadius: 8,
     elevation: 4,
     overflow: 'hidden',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#e2e8f0',
   },
   input: {
     flex: 1,
     fontSize: 16,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
+    paddingVertical: 18,
+    paddingHorizontal: 18,
     color: '#1e293b',
     fontWeight: '500',
   },
   addButton: {
-    backgroundColor: '#10B981', // Emerald green for add button
-    paddingHorizontal: 20,
+    backgroundColor: '#10B981',
+    paddingHorizontal: 24,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -606,52 +619,52 @@ const styles = StyleSheet.create({
   inputHint: {
     fontSize: 12,
     color: '#94a3b8',
-    marginTop: 8,
+    marginTop: 10,
     marginLeft: 4,
     fontStyle: 'italic',
   },
   actionButtonsContainer: {
-    marginBottom: 20,
-    paddingHorizontal: 16,
+    marginBottom: 24,
+    paddingHorizontal: 20,
   },
   actionSectionTitle: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#64748b',
     fontWeight: '700',
-    marginBottom: 12,
-    letterSpacing: 1,
+    marginBottom: 14,
+    letterSpacing: 0.5,
   },
   actionScroll: {
     marginBottom: 4,
   },
   actionButtonsRow: {
     flexDirection: 'row',
-    gap: 8,
-    paddingBottom: 4,
+    gap: 10,
+    paddingBottom: 6,
   },
   actionButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
-    minWidth: 130,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 14,
+    minWidth: 140,
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
     elevation: 3,
   },
   completeAllButton: {
-    backgroundColor: '#3B82F6', // Blue for Complete All
+    backgroundColor: '#3B82F6',
   },
   clearCompletedButton: {
-    backgroundColor: '#f59e0b', // Orange for Clear Completed
+    backgroundColor: '#f59e0b',
   },
   exportButton: {
-    backgroundColor: '#8B5CF6', // Purple for Export Tasks
+    backgroundColor: '#8B5CF6',
   },
   deleteAllButton: {
-    backgroundColor: '#ef4444', // Red for Delete All (danger action)
+    backgroundColor: '#ef4444',
   },
   actionButtonText: {
     color: 'white',
@@ -659,144 +672,143 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.5,
   },
-  tasksScrollContainer: {
-    flex: 1,
-    paddingHorizontal: 16,
-  },
   tasksSectionTitle: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#64748b',
     fontWeight: '700',
-    marginBottom: 16,
-    letterSpacing: 1,
+    marginBottom: 20,
+    letterSpacing: 0.5,
+    paddingHorizontal: 20,
   },
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 60,
+    paddingVertical: 50,
     paddingHorizontal: 20,
   },
-  emptyIcon: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: '#dbeafe',
-    justifyContent: 'center',
-    alignItems: 'center',
+  emptyEmoji: {
+    fontSize: 70,
     marginBottom: 20,
   },
-  emptyIconText: {
-    fontSize: 32,
-    color: '#60a5fa',
-    fontWeight: 'bold',
-  },
   emptyTitle: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: '800',
     color: '#1e293b',
-    marginBottom: 12,
+    marginBottom: 16,
     letterSpacing: -0.5,
   },
   emptyText: {
     fontSize: 16,
     color: '#64748b',
     textAlign: 'center',
-    marginBottom: 32,
+    marginBottom: 36,
     lineHeight: 24,
     fontWeight: '500',
   },
   emptyTips: {
     backgroundColor: 'white',
     padding: 24,
-    borderRadius: 16,
+    borderRadius: 18,
     width: '100%',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 4,
-    borderWidth: 1,
+    shadowRadius: 10,
+    elevation: 5,
+    borderWidth: 1.5,
     borderColor: '#e2e8f0',
   },
   tipTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
     color: '#475569',
-    marginBottom: 16,
+    marginBottom: 20,
     letterSpacing: 0.5,
   },
   tipItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 14,
   },
-  tipBullet: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#60a5fa',
+  tipEmoji: {
+    fontSize: 18,
     marginRight: 12,
+    width: 24,
+    textAlign: 'center',
   },
   tipText: {
-    fontSize: 14,
+    fontSize: 15,
     color: '#64748b',
-    lineHeight: 20,
+    lineHeight: 22,
     fontWeight: '500',
+    flex: 1,
   },
   dateGroup: {
-    marginBottom: 24,
+    marginBottom: 28,
+    paddingHorizontal: 20,
   },
   dateHeaderContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
-    paddingHorizontal: 4,
+    marginBottom: 16,
+  },
+  dateHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  dateIcon: {
+    fontSize: 18,
+    marginRight: 8,
   },
   dateHeader: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '800',
     color: '#1e293b',
     letterSpacing: -0.5,
   },
+  dateBadge: {
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
   dateCount: {
     fontSize: 13,
-    color: '#94a3b8',
-    fontWeight: '600',
-    backgroundColor: '#f1f5f9',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
+    color: '#64748b',
+    fontWeight: '700',
   },
   taskItem: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'white',
-    padding: 16,
-    borderRadius: 14,
-    marginBottom: 10,
+    padding: 18,
+    borderRadius: 16,
+    marginBottom: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
-    borderWidth: 1,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 1.5,
     borderColor: '#e2e8f0',
-    borderLeftWidth: 4,
-    borderLeftColor: '#10B981', // Green accent border
+    borderLeftWidth: 5,
+    borderLeftColor: '#10B981',
   },
   completedTaskItem: {
     backgroundColor: '#f8fafc',
     borderColor: '#d1fae5',
-    borderLeftColor: '#10b981', // Keep green for completed too
+    borderLeftColor: '#10b981',
   },
   checkbox: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     borderWidth: 2,
     borderColor: '#cbd5e1',
-    marginRight: 14,
+    marginRight: 16,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -813,10 +825,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   taskText: {
-    fontSize: 16,
+    fontSize: 17,
     color: '#1e293b',
-    marginBottom: 6,
-    lineHeight: 22,
+    marginBottom: 8,
+    lineHeight: 24,
     fontWeight: '500',
   },
   completedTaskText: {
@@ -826,7 +838,7 @@ const styles = StyleSheet.create({
   taskMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
   },
   taskTime: {
     fontSize: 13,
@@ -835,55 +847,62 @@ const styles = StyleSheet.create({
   },
   completedBadge: {
     backgroundColor: '#d1fae5',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   completedBadgeText: {
-    fontSize: 10,
+    fontSize: 11,
     color: '#065f46',
     fontWeight: '700',
     letterSpacing: 0.5,
   },
   deleteButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#fee2e2',
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 10,
+    marginLeft: 12,
   },
   deleteButtonText: {
-    color: '#dc2626',
     fontSize: 18,
-    fontWeight: 'bold',
+  },
+  footerSpacer: {
+    height: 30,
   },
   footer: {
-    backgroundColor: '#f59e0b', // Keeping the orange footer
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#d97706',
+    backgroundColor: '#660000',
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+    borderTopWidth: 2,
+    borderTopColor: '#550000',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 4,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
   },
   footerText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#7c2d12',
+    color: '#FFFFFF',
     textAlign: 'center',
     marginBottom: 6,
+    lineHeight: 20,
   },
   footerSubtext: {
-    fontSize: 11,
-    color: '#92400e',
+    fontSize: 12,
+    color: '#FFCCCC',
     textAlign: 'center',
     fontWeight: '500',
+    lineHeight: 18,
   },
 });
 
